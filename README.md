@@ -10,6 +10,10 @@ This is a copy of `glow-and-go-app` changed to run on older iPads that can't upd
 - **Performance:** draws at standard resolution instead of Retina, so the animation stays smooth on the older chip.
 - **Offline cache:** uses its own cache name (`glow-and-go-legacy-…`), so it can be hosted beside the main app without the two interfering.
 
+## Extra features (this version only)
+- **Background music:** Off / Calm pads / Music box / Ocean waves, with a volume slider (Very quiet → Medium). The music is generated on the device, so it works offline. It fades in slowly, has no sudden sounds, and starts at the child's first touch, because iPads only allow sound after a touch. The iPad's side mute switch silences it.
+- **Child lock:** hides the ⚙ button almost completely. To unlock, press and hold the top-right corner still for 3 seconds. A sliding finger cancels the hold, so a child playing won't open it. For a full lock that also blocks the Home button, use iPad **Guided Access** (Settings → General → Accessibility → Guided Access, then triple-click the Home button inside the app).
+
 Activities, settings and behaviour are otherwise identical. If you change the main app, copy the change here too and bump `VERSION` in `sw.js`.
 
 ## Putting it on the iPad

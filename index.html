@@ -17,7 +17,7 @@
 <style>
   :root { color-scheme: dark; --accent:#7fe9ff; --ink:#eef3ff; --muted:#b9c4e4; --tile:#262c46; --tile-on:#135f78; }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html,body { margin:0; width:100%; height:100%; overflow:hidden; background:#04060c; touch-action:none; overscroll-behavior:none;
+  html,body { position:fixed; top:0; left:0; margin:0; width:100%; height:100%; overflow:hidden; background:#04060c; touch-action:none; overscroll-behavior:none;
     -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
   canvas { position:fixed; top:0; right:0; bottom:0; left:0; width:100%; height:100%; display:block; touch-action:none; }
 
@@ -143,10 +143,10 @@
   <h2>More</h2>
   <div class="row"><span>Gentle light wave when idle<small>A slow wave invites a touch after a quiet moment</small></span><button class="switch" data-toggle="wave"></button></div>
   <div class="row"><span>Helper words on screen<small>Short prompts at the bottom</small></span><button class="switch" data-toggle="hints"></button></div>
-  <div class="row"><span>Full screen on first touch<small>Hides browser bars when the child starts</small></span><button class="switch" data-toggle="autoFull"></button></div>
+  <div class="row"><span>Full screen on first touch<small>Off is best on iPad: Safari's full screen slides away when swiped. For a steady full screen, use Share → Add to Home Screen.</small></span><button class="switch" data-toggle="autoFull"></button></div>
   <div class="row"><span>Full screen now</span><button class="switch" id="fullNow">Go</button></div>
 
-  <p class="note">Every touch lights something, wherever it lands — no aiming, scores, timers or failure. Lights fade in and out slowly; there is no flashing or strobing. Sound and music are off unless you turn them on, are always quiet, and fade in slowly. Music starts at the child's first touch. If you hear nothing, check the iPad's side mute switch and volume. Works offline once installed. Settings are saved on this device only. To exit full screen, press and hold the ⚙ button, or use the device's back/home gesture. If the child seems uncomfortable, try “Calm &amp; soft”, lower the brightness, or take a break.</p>
+  <p class="note">Every touch lights something, wherever it lands — no aiming, scores, timers or failure. Lights fade in and out slowly; there is no flashing or strobing. Touch sounds and calm background music are on and quiet; the music fades in slowly and starts at the child's first touch. The magic ball has its own slightly louder sound. If you hear nothing, check the iPad's side mute switch and volume. Works offline once installed. Settings are saved on this device only. To exit full screen, press and hold the ⚙ button, or use the device's back/home gesture. If the child seems uncomfortable, try “Calm &amp; soft”, lower the brightness, or take a break.</p>
  </section>
 </div>
 
@@ -177,15 +177,20 @@ const HOP_SECONDS = [Infinity, 9, 6.5, 4.5, 3.2];
 const AFTERGLOW = [1.3, 2.6, 5];
 const MODES = ['wall', 'drift', 'follow', 'ball'];
 const HINTS = { wall: 'Touch the glowing circles ✨', drift: 'Reach for the moving light 🌕', follow: 'Touch the brightest light ✨', ball: 'Touch and move the magic ball 🔵' };
-const DEFAULTS = { mode: 'wall', size: 2, bright: 85, speed: 2, after: 1, palette: 'rainbow', sound: 0, wave: true, hints: true, autoFull: true, music: 0, musicVol: 1, lock: false };
+const DEFAULTS = { mode: 'wall', size: 2, bright: 85, speed: 2, after: 1, palette: 'rainbow', sound: 2, wave: true, hints: true, autoFull: false, music: 1, musicVol: 1, lock: false };
 const PRESETS = {
   calm:  { size: 3, bright: 55, speed: 1, after: 2, palette: 'soft', sound: 0, wave: false },
   vivid: { size: 2, bright: 100, speed: 3, after: 1, palette: 'rainbow', wave: true }
 };
-const KEY = 'glowgo.v2';
+const KEY = 'glowgo.legacy.v3';
 let S = Object.assign({}, DEFAULTS);
 try {
-  const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
+  let saved = JSON.parse(localStorage.getItem(KEY) || 'null');
+  if (!saved) {
+    // first run of this version: keep the look from before, but switch on the new sound defaults
+    saved = JSON.parse(localStorage.getItem('glowgo.v2') || 'null');
+    if (saved) { delete saved.sound; delete saved.music; delete saved.musicVol; delete saved.autoFull; }
+  }
   if (saved && typeof saved === 'object') for (const k in DEFAULTS) if (typeof saved[k] === typeof DEFAULTS[k]) S[k] = saved[k];
 } catch (e) {}
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -427,13 +432,14 @@ function startOcean(m) {
   src.connect(f); f.connect(g); g.connect(m.out);
   src.start(0); lfo.start(0); track(m, src); track(m, lfo);
 }
-function chime(x, lift = 0) {
+const FX_VOL = [0, .05, .09];
+function chime(x, lift = 0, loud = 1) {
   if (!S.sound || t - lastChime < .14) return;
   lastChime = t; unlockAudio(); if (!audio) return;
   try {
     const step = Math.floor(clamp(x / W, 0, .999) * 10) + lift;
     const semis = PENTA[step % 5] + 12 * Math.floor(step / 5);
-    const f = 261.63 * Math.pow(2, semis / 12), now = audio.currentTime, vol = S.sound === 1 ? .03 : .06;
+    const f = 261.63 * Math.pow(2, semis / 12), now = audio.currentTime, vol = FX_VOL[S.sound] * loud;
     const g = audio.createGain(), lp = audio.createBiquadFilter();
     lp.type = 'lowpass'; lp.frequency.value = 1800;
     g.gain.setValueAtTime(.0001, now); g.gain.exponentialRampToValueAtTime(vol, now + .03); g.gain.exponentialRampToValueAtTime(.0001, now + 1.4);
@@ -442,6 +448,37 @@ function chime(x, lift = 0) {
       const o = audio.createOscillator(), og = audio.createGain();
       o.type = 'sine'; o.frequency.value = f * mul; og.gain.value = amp; o.connect(og); og.connect(g); o.start(now); o.stop(now + 1.5);
     });
+  } catch (e) {}
+}
+/* Magic ball has its own, slightly louder sounds: a round "bloop" on touch, sparkly notes as it rolls over circles */
+let lastBallFx = -1;
+function ballBloop(x) {
+  if (!S.sound || !ensureAudio()) return;
+  try {
+    const now = audio.currentTime, vol = FX_VOL[S.sound] * 2.2;
+    const g = audio.createGain(), lp = audio.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400;
+    g.gain.setValueAtTime(.0001, now); g.gain.exponentialRampToValueAtTime(vol, now + .03); g.gain.exponentialRampToValueAtTime(.0001, now + 1.1);
+    g.connect(lp); lp.connect(audio.destination);
+    const base = 196 * Math.pow(2, Math.floor(clamp(x / W, 0, .999) * 5) / 12); // pitch shifts gently left to right
+    const o = audio.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(base, now); o.frequency.exponentialRampToValueAtTime(base * 2, now + .22); // upward "bloop"
+    o.connect(g); o.start(now); o.stop(now + 1.2);
+    [[3, .25, .15], [4, .18, .25], [6, .1, .35]].forEach(([mul, a, d]) => { // shimmering bells on top
+      const s = audio.createOscillator(), sg = audio.createGain(); s.type = 'sine'; s.frequency.value = base * mul;
+      sg.gain.setValueAtTime(.0001, now + d); sg.gain.exponentialRampToValueAtTime(a, now + d + .02); sg.gain.exponentialRampToValueAtTime(.0001, now + d + .9);
+      s.connect(sg); sg.connect(g); s.start(now + d); s.stop(now + d + 1);
+    });
+  } catch (e) {}
+}
+function ballSparkle(x) {
+  if (!S.sound || t - lastBallFx < .12 || !ensureAudio()) return;
+  lastBallFx = t;
+  try {
+    const now = audio.currentTime, step = Math.floor(clamp(x / W, 0, .999) * 10) + 5;
+    const f = 261.63 * Math.pow(2, (PENTA[step % 5] + 12 * Math.floor(step / 5)) / 12), vol = FX_VOL[S.sound] * 1.3;
+    const o = audio.createOscillator(), g = audio.createGain(); o.type = 'triangle'; o.frequency.value = f;
+    g.gain.setValueAtTime(.0001, now); g.gain.exponentialRampToValueAtTime(vol, now + .01); g.gain.exponentialRampToValueAtTime(.0001, now + .6);
+    o.connect(g); g.connect(audio.destination); o.start(now); o.stop(now + .7);
   } catch (e) {}
 }
 
@@ -501,6 +538,8 @@ function onTouch(x, y, kind, id) {
   if (mode === 'wall') {
     const d = splash(x, y, 1);
     if (kind === 'down') { ring(d.x, d.y, d.rgb); burst(d.x, d.y, 6, .6); chime(x); }
+    else if (d !== lastFxDot) chime(x, 0, .75); // dragging plays a soft note for each new circle
+    lastFxDot = d;
   } else if (mode === 'follow') {
     const tg = dots[target], near = Math.hypot(x - tg.x, y - tg.y) < Math.max(cell * 1.7, 95);
     if (near) {
@@ -526,11 +565,14 @@ function onTouch(x, y, kind, id) {
     }
   } else if (mode === 'ball') {
     ball.tx = x; ball.ty = y; ball.joy = 1;
-    splash(x, y, .9);
-    if (kind === 'down') { ring(x, y, [102, 245, 255], 1.4); chime(x); }
+    const d = splash(x, y, .9);
+    if (kind === 'down') { ring(x, y, [102, 245, 255], 1.4); ballBloop(x); }
+    else if (d !== lastFxDot) ballSparkle(x);
+    lastFxDot = d;
     if (Math.random() < .7) burst(x, y, 1, .35);
   }
 }
+let lastFxDot = null;
 function inputDown(id, x, y) {
   if (overlay.classList.contains('open')) return;
   unlockAudio(); keepAwake();
