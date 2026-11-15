@@ -1,5 +1,5 @@
-/* Glow & Go offline cache. Bump VERSION whenever any app file changes. */
-const VERSION = 'glow-and-go-v2.0.0';
+/* Glow & Go (older iPad version) offline cache. Only touches its own caches, so it can live beside the main app. Bump VERSION whenever any app file changes. */
+const VERSION = 'glow-and-go-legacy-v1.1.0';
 const ASSETS = [
   './',
   './index.html',
@@ -17,7 +17,7 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== VERSION).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k.indexOf('glow-and-go-legacy') === 0 && k !== VERSION).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
