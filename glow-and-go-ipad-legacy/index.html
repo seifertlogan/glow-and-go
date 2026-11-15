@@ -90,11 +90,12 @@
   </div>
 
   <h2>Activity</h2>
-  <div class="grid">
+  <div class="grid three">
    <button class="tile big" data-mode="wall"><span class="em">🌈</span>Light wall</button>
    <button class="tile big" data-mode="drift"><span class="em">🌕</span>Drifting light</button>
    <button class="tile big" data-mode="follow"><span class="em">✨</span>Follow a light</button>
    <button class="tile big" data-mode="ball"><span class="em">🔵</span>Magic ball</button>
+   <button class="tile big" data-mode="show"><span class="em">🎆</span>Light show</button>
   </div>
 
   <h2><span>Circle size</span><output id="sizeOut"></output></h2>
@@ -175,8 +176,8 @@ const SPEED_PX = [0, 22, 40, 65, 95];
 const SPEED_NAMES = ['Still', 'Very slow', 'Slow', 'Medium', 'Lively'];
 const HOP_SECONDS = [Infinity, 9, 6.5, 4.5, 3.2];
 const AFTERGLOW = [1.3, 2.6, 5];
-const MODES = ['wall', 'drift', 'follow', 'ball'];
-const HINTS = { wall: 'Touch the glowing circles ✨', drift: 'Reach for the moving light 🌕', follow: 'Touch the brightest light ✨', ball: 'Touch and move the magic ball 🔵' };
+const MODES = ['wall', 'drift', 'follow', 'ball', 'show'];
+const HINTS = { wall: 'Touch the glowing circles ✨', drift: 'Reach for the moving light 🌕', follow: 'Touch the brightest light ✨', ball: 'Touch and move the magic ball 🔵', show: 'Watch the light show — touch to add sparkles 🎆' };
 const DEFAULTS = { mode: 'wall', size: 2, bright: 85, speed: 2, after: 1, palette: 'rainbow', sound: 2, wave: true, hints: true, autoFull: false, music: 1, musicVol: 1, lock: false };
 const PRESETS = {
   calm:  { size: 3, bright: 55, speed: 1, after: 2, palette: 'soft', sound: 0, wave: false },
@@ -294,6 +295,7 @@ function buildBackground() {
 }
 function configure() {
   pitch = SIZE_PITCH[S.size - 1];
+  if (S.mode === 'show') pitch = Math.round(pitch * 1.45); // light show uses bigger circles
   cols = Math.max(2, Math.round(W / pitch)); rows = Math.max(2, Math.round(H / pitch));
   const cw = W / cols, ch = H / rows; cell = Math.min(cw, ch); dotR = cell * .365;
   pal = PALETTES[S.palette].c.map(hex2rgb);
@@ -563,6 +565,11 @@ function onTouch(x, y, kind, id) {
       orb.ax = x; orb.ay = y; orb.attractUntil = t + 4.5;
       if (kind === 'down') { const d = dots[nearest(x, y)]; ring(d.x, d.y, d.rgb); chime(x); }
     }
+  } else if (mode === 'show') {
+    const d = splash(x, y, 1);
+    if (kind === 'down') { ring(d.x, d.y, d.rgb, 1.6); burst(d.x, d.y, 14, 1); chime(x, 2); show.taps.push({ x: x, y: y, t0: t }); if (show.taps.length > 6) show.taps.shift(); }
+    else { if (d !== lastFxDot) chime(x, 2, .75); if (Math.random() < .5) burst(x, y, 1, .5); }
+    lastFxDot = d;
   } else if (mode === 'ball') {
     ball.tx = x; ball.ty = y; ball.joy = 1;
     const d = splash(x, y, .9);
@@ -646,6 +653,46 @@ function updateFollow() {
   tg.lit = Math.max(tg.lit, breathe);
   for (const d of dots) { const dist = Math.hypot(d.x - tg.x, d.y - tg.y); if (dist > 1 && dist < cell * 1.6) d.lit = Math.max(d.lit, .22 * (1 - dist / (cell * 1.6))); }
 }
+/* ---------- Light show: slow random patterns, changing every 7-10 seconds (smooth, never flashing) ---------- */
+const SHOW_KINDS = ['sparkle', 'ripple', 'sweep', 'spiral', 'rain', 'breathe'];
+const SHOW_SPEED = [.35, .6, .85, 1.1, 1.4];
+const hash = n => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+const show = { cur: null, prev: null, next: 0, taps: [] };
+function newPattern() {
+  const kinds = SHOW_KINDS.filter(k => !show.cur || k !== show.cur.kind);
+  return { kind: kinds[Math.floor(Math.random() * kinds.length)], t0: t, cx: W * (.2 + Math.random() * .6), cy: H * (.2 + Math.random() * .6),
+    ang: Math.random() * TAU, dir: Math.random() < .5 ? 1 : -1, seed: Math.random() * 1000 };
+}
+function showStart() { show.prev = null; show.cur = newPattern(); show.next = t + 7 + Math.random() * 3; show.taps = []; }
+function patternLevel(p, d, i) {
+  const pt = (t - p.t0) * SHOW_SPEED[S.speed] * (reduced ? .5 : 1);
+  if (p.kind === 'ripple') { const r = Math.hypot(d.x - p.cx, d.y - p.cy) / cell; return Math.pow(.5 + .5 * Math.cos(r * .9 - pt * 2.2), 4); }
+  if (p.kind === 'sweep') { const q = ((d.x - W / 2) * Math.cos(p.ang) + (d.y - H / 2) * Math.sin(p.ang)) / cell; return Math.pow(.5 + .5 * Math.cos(q * .7 - pt * 2), 5); }
+  if (p.kind === 'spiral') { const a = Math.atan2(d.y - H / 2, d.x - W / 2), r = Math.hypot(d.x - W / 2, d.y - H / 2) / cell; return Math.pow(.5 + .5 * Math.cos(a * 2 + p.dir * (r * .6 - pt * 1.5)), 6); }
+  if (p.kind === 'rain') {
+    const span = rows + 5, y = (pt * 1.8 + hash(d.cx + p.seed) * span) % span, back = y - d.cy;
+    return back >= 0 && back < 3 ? 1 - back / 3 : 0;
+  }
+  if (p.kind === 'breathe') return Math.pow(.5 + .5 * Math.sin(pt * 1.2 + (d.ci % 3) * 2.1), 2);
+  return Math.pow(Math.max(0, Math.sin(pt * (.6 + hash(i + p.seed) * .8) + hash(i * 3.1 + p.seed) * TAU)), 8); // sparkle
+}
+function updateShow() {
+  if (!show.cur) showStart();
+  if (t > show.next) { show.prev = show.cur; show.cur = newPattern(); show.next = t + 7 + Math.random() * 3; }
+  const blend = show.prev ? smooth(clamp((t - show.cur.t0) / 2, 0, 1)) : 1; // 2-second cross-fade between patterns
+  if (blend >= 1) show.prev = null;
+  show.taps = show.taps.filter(k => t - k.t0 < 3);
+  for (let i = 0; i < dots.length; i++) {
+    const d = dots[i];
+    let L = patternLevel(show.cur, d, i);
+    if (show.prev) L = patternLevel(show.prev, d, i) * (1 - blend) + L * blend;
+    for (const k of show.taps) { // a bright ring spreads out from each touch
+      const age = t - k.t0, r = Math.hypot(d.x - k.x, d.y - k.y) / cell - age * 4;
+      L = Math.max(L, Math.exp(-r * r * .8) * (1 - age / 3));
+    }
+    d.lit = Math.max(d.lit, L);
+  }
+}
 function updateWave(dt) {
   if (!S.wave || reduced || S.mode !== 'wall' || t - lastTouch < 7 || t < wavePauseUntil) return;
   const span = W + H * .6;
@@ -668,7 +715,7 @@ function drawDots(ambient) {
   ctx.globalCompositeOperation = 'lighter';
   for (const d of dots) {
     const L = Math.max(d.hot, d.lit); if (L < .03) continue;
-    const g = d.r * 3.3; ctx.globalAlpha = Math.min(1, L * .95);
+    const g = d.r * 3.3 * (S.mode === 'show' ? 1.4 : 1); ctx.globalAlpha = Math.min(1, L * (S.mode === 'show' ? 1.25 : .95));
     ctx.drawImage(sprites[d.ci].glow, d.x - g, d.y - g, g * 2, g * 2);
   }
   ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
@@ -746,10 +793,10 @@ function frame(now) {
   const fade = dt / AFTERGLOW[S.after];
   for (const d of dots) { d.hot = Math.max(0, d.hot - fade); d.lit = 0; }
   const mode = S.mode;
-  if (mode === 'drift') updateOrb(dt); else if (mode === 'ball') updateBall(dt); else if (mode === 'follow') updateFollow(); else updateWave(dt);
+  if (mode === 'drift') updateOrb(dt); else if (mode === 'ball') updateBall(dt); else if (mode === 'show') updateShow(); else if (mode === 'follow') updateFollow(); else updateWave(dt);
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
   ctx.drawImage(bg, 0, 0, W, H);
-  drawDots(mode === 'wall' ? 1 : mode === 'follow' ? .62 : .78);
+  drawDots(mode === 'wall' ? 1 : mode === 'follow' ? .62 : mode === 'show' ? .55 : .78);
   drawEffects(dt);
   if (mode === 'drift') drawOrb(); else if (mode === 'ball') drawBall(); else if (mode === 'follow') drawTargetHalo();
   if (S.bright < 100) { ctx.fillStyle = `rgba(0,0,0,${((100 - S.bright) / 100 * .85).toFixed(3)})`; ctx.fillRect(0, 0, W, H); }
@@ -800,7 +847,9 @@ function syncGear() {
   gear.setAttribute('aria-label', S.lock ? 'Locked. Grown-ups: press and hold for 3 seconds' : 'Grown-up settings (press and hold)');
 }
 function setMode(m) {
-  S.mode = m; rings = []; sparks = []; orb.joy = 0; orb.held = false;
+  const relayout = (S.mode === 'show') !== (m === 'show');
+  S.mode = m; if (relayout && W) configure(); if (m === 'show') showStart();
+  rings = []; sparks = []; orb.joy = 0; orb.held = false;
   nextHop = t + HOP_SECONDS[S.speed]; lastTouch = t;
   showHint(HINTS[m]);
 }

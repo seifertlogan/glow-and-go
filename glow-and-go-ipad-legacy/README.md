@@ -11,6 +11,7 @@ This is a copy of `glow-and-go-app` changed to run on older iPads that can't upd
 - **Offline cache:** uses its own cache name (`glow-and-go-legacy-…`), so it can be hosted beside the main app without the two interfering.
 
 ## Extra features (this version only)
+- **Light show (new activity):** bigger, brighter circles play slow random patterns on their own — sparkles, ripples, sweeps, spirals, falling rain and breathing colours — changing every 7–10 seconds with a smooth cross-fade (never flashing). Touching adds a bright ring and a chime. Movement speed controls how fast the patterns move.
 - **On by default:** soft touch sounds and quiet Calm-pads music. Dragging across circles plays a note for each circle. The magic ball has its own slightly louder "bloop" on touch and sparkly notes as it rolls.
 - **Full screen:** "Full screen on first touch" is off by default, because Safari's full screen on iPad slides away when swiped. Use Share → Add to Home Screen for a steady full screen.
 - **Background music:** Off / Calm pads / Music box / Ocean waves, with a volume slider (Very quiet → Medium). The music is generated on the device, so it works offline. It fades in slowly, has no sudden sounds, and starts at the child's first touch, because iPads only allow sound after a touch. The iPad's side mute switch silences it.

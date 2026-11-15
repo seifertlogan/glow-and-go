@@ -1,5 +1,5 @@
 /* Glow & Go (older iPad version) offline cache. Only touches its own caches, so it can live beside the main app. Bump VERSION whenever any app file changes. */
-const VERSION = 'glow-and-go-legacy-v1.2.1';
+const VERSION = 'glow-and-go-legacy-v1.3.0';
 const ASSETS = [
   './',
   './index.html',
