@@ -1,5 +1,5 @@
 /* Glow & Go (older iPad version) offline cache. Only touches its own caches, so it can live beside the main app. Bump VERSION whenever any app file changes. */
-const VERSION = 'glow-and-go-legacy-v1.2.0';
+const VERSION = 'glow-and-go-legacy-v1.2.1';
 const ASSETS = [
   './',
   './index.html',
@@ -26,6 +26,16 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  // Pages: try the network first so updates show up straight away; use the saved copy when offline.
+  if (req.mode === 'navigate' || /\.html?$|\/$/.test(new URL(req.url).pathname)) {
+    event.respondWith(
+      fetch(req, { cache: 'no-store' }).then(res => {
+        if (res && res.ok) { const copy = res.clone(); caches.open(VERSION).then(c => c.put(req, copy)); }
+        return res;
+      }).catch(() => caches.match(req, { ignoreSearch: true }).then(hit => hit || caches.match('./index.html')))
+    );
+    return;
+  }
   event.respondWith(
     caches.match(req, { ignoreSearch: true }).then(hit => {
       if (hit) return hit;
