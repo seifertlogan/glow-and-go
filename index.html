@@ -13,20 +13,22 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<title>Glow &amp; Go — Sensory Light Wall</title>
+<title>Glow &amp; Go — Sensory Light Wall (older iPad version)</title>
 <style>
   :root { color-scheme: dark; --accent:#7fe9ff; --ink:#eef3ff; --muted:#b9c4e4; --tile:#262c46; --tile-on:#135f78; }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body { margin:0; width:100%; height:100%; overflow:hidden; background:#04060c; touch-action:none; overscroll-behavior:none;
     -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
-  canvas { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+  canvas { position:fixed; top:0; right:0; bottom:0; left:0; width:100%; height:100%; display:block; touch-action:none; }
 
   /* Grown-up button: small, dim, press-and-hold so a child doesn't open it by accident */
   .gear { position:fixed; z-index:5; right:calc(14px + env(safe-area-inset-right)); top:calc(14px + env(safe-area-inset-top));
     width:54px; height:54px; border-radius:50%; border:none; padding:0; cursor:pointer; color:#fff; font-size:24px; line-height:54px;
-    background:conic-gradient(var(--accent) calc(var(--p,0) * 1turn), #ffffff1f 0); opacity:.32; transition:opacity .4s; touch-action:none; }
-  .gear span { position:absolute; inset:4px; border-radius:50%; background:#0d1222; display:grid; place-items:center; }
+    background:#ffffff1f; background:conic-gradient(var(--accent) calc(var(--p,0) * 1turn), #ffffff1f 0); opacity:.32; transition:opacity .4s; touch-action:none; }
+  .gear span { position:absolute; top:4px; right:4px; bottom:4px; left:4px; border-radius:50%; background:#0d1222; display:grid; place-items:center; }
   .gear.holding, .gear:focus-visible { opacity:1; }
+  .gear.locked { opacity:.1; }
+  .gear.locked.holding { opacity:1; }
   .gear:focus-visible { outline:3px solid #fff; outline-offset:3px; }
 
   #hint { position:fixed; z-index:4; left:50%; bottom:calc(20px + env(safe-area-inset-bottom)); transform:translateX(-50%);
@@ -34,13 +36,13 @@
     white-space:nowrap; max-width:92vw; overflow:hidden; text-overflow:ellipsis; pointer-events:none; transition:opacity 1.2s; }
   #hint.hidden { opacity:0; }
 
-  .overlay { position:fixed; inset:0; z-index:10; display:none; align-items:center; justify-content:center; padding:14px;
+  .overlay { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10; display:none; align-items:center; justify-content:center; padding:14px;
     background:#02040ab0; backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); touch-action:pan-y; }
   .overlay.open { display:flex; }
-  .panel { width:min(560px,100%); max-height:calc(100dvh - 28px); overflow:auto; -webkit-overflow-scrolling:touch; touch-action:pan-y;
+  .panel { width:min(560px,100%); max-height:calc(100vh - 28px); max-height:calc(100dvh - 28px); overflow:auto; -webkit-overflow-scrolling:touch; touch-action:pan-y;
     padding:20px 20px 24px; border-radius:24px; color:var(--ink); background:linear-gradient(160deg,#1d2240,#10132a);
     border:1px solid #7f8fd055; box-shadow:0 24px 70px #000d; -webkit-user-select:none; user-select:none; }
-  .head { display:flex; align-items:center; justify-content:space-between; gap:12px; position:sticky; top:-20px; margin:-20px -20px 0; padding:18px 20px 12px; background:#1b2040f2; z-index:1; border-radius:24px 24px 0 0; }
+  .head { display:flex; align-items:center; justify-content:space-between; position:-webkit-sticky; position:sticky; top:-20px; margin:-20px -20px 0; padding:18px 20px 12px; background:#1b2040f2; z-index:1; border-radius:24px 24px 0 0; }
   h1 { margin:0; font-size:22px; }
   h2 { margin:22px 0 10px; font-size:12.5px; letter-spacing:1.3px; text-transform:uppercase; color:var(--muted); display:flex; justify-content:space-between; }
   h2 output { color:var(--accent); letter-spacing:.3px; text-transform:none; font-size:14px; }
@@ -54,7 +56,8 @@
   .tile .em { display:block; font-size:30px; margin-bottom:6px; }
   .tile[aria-pressed="true"] { background:var(--tile-on); border-color:var(--accent); box-shadow:0 0 18px #7fe9ff33; }
   .tile:focus-visible, .done:focus-visible, .switch:focus-visible, input:focus-visible { outline:3px solid #fff; outline-offset:2px; }
-  .sw { display:flex; justify-content:center; gap:3px; margin-bottom:6px; }
+  .sw { display:flex; justify-content:center; margin-bottom:6px; }
+  .sw i { margin:0 1.5px; }
   .sw i { width:12px; height:12px; border-radius:50%; display:block; box-shadow:0 0 6px currentColor; }
   input[type=range] { width:100%; height:44px; margin:0; background:transparent; -webkit-appearance:none; appearance:none; touch-action:pan-x; }
   input[type=range]::-webkit-slider-runnable-track { height:10px; border-radius:6px; background:linear-gradient(90deg,#2e3658,#7fe9ff); }
@@ -62,7 +65,8 @@
   input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:34px; height:34px; margin-top:-12px; border-radius:50%; background:#fff; border:4px solid #4fe1ce; box-shadow:0 2px 10px #0008; }
   input[type=range]::-moz-range-thumb { width:28px; height:28px; border-radius:50%; background:#fff; border:4px solid #4fe1ce; }
   .scale { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-top:-4px; }
-  .row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:10px; padding:10px 14px; border-radius:14px; background:var(--tile); font-size:15px; }
+  .row { display:flex; align-items:center; justify-content:space-between; margin-top:10px; padding:10px 14px; border-radius:14px; background:var(--tile); font-size:15px; }
+  .row > span { margin-right:12px; }
   .row small { display:block; color:var(--muted); font-size:12px; margin-top:2px; }
   .switch { min-width:74px; height:42px; border-radius:12px; border:1px solid #c3cad266; background:#3a4364; font-weight:800; }
   .switch[aria-pressed="true"] { background:#4fe1ce; color:#062326; border-color:#4fe1ce; }
@@ -122,12 +126,27 @@
    <button class="tile" data-sound="2">Soft</button>
   </div>
 
+  <h2>Background music</h2>
+  <div class="grid">
+   <button class="tile" data-music="0">🔇 Off</button>
+   <button class="tile" data-music="1">🌙 Calm pads</button>
+   <button class="tile" data-music="2">🎵 Music box</button>
+   <button class="tile" data-music="3">🌊 Ocean waves</button>
+  </div>
+  <h2><span>Music volume</span><output id="musicVolOut"></output></h2>
+  <input type="range" id="musicVol" min="1" max="3" step="1" aria-label="Music volume">
+  <div class="scale"><span>Very quiet</span><span>Medium</span></div>
+
+  <h2>Child lock</h2>
+  <div class="row"><span>Lock the settings button<small>Hides the ⚙ button so a child can't open settings. To unlock, press and hold the top-right corner for 3 seconds.</small></span><button class="switch" data-toggle="lock"></button></div>
+
+  <h2>More</h2>
   <div class="row"><span>Gentle light wave when idle<small>A slow wave invites a touch after a quiet moment</small></span><button class="switch" data-toggle="wave"></button></div>
   <div class="row"><span>Helper words on screen<small>Short prompts at the bottom</small></span><button class="switch" data-toggle="hints"></button></div>
   <div class="row"><span>Full screen on first touch<small>Hides browser bars when the child starts</small></span><button class="switch" data-toggle="autoFull"></button></div>
   <div class="row"><span>Full screen now</span><button class="switch" id="fullNow">Go</button></div>
 
-  <p class="note">Every touch lights something, wherever it lands — no aiming, scores, timers or failure. Lights fade in and out slowly; there is no flashing or strobing. Sound is off unless you turn it on, and is always quiet. Works offline once installed. Settings are saved on this device only. To exit full screen, press and hold the ⚙ button, or use the device's back/home gesture. If the child seems uncomfortable, try “Calm &amp; soft”, lower the brightness, or take a break.</p>
+  <p class="note">Every touch lights something, wherever it lands — no aiming, scores, timers or failure. Lights fade in and out slowly; there is no flashing or strobing. Sound and music are off unless you turn them on, are always quiet, and fade in slowly. Music starts at the child's first touch. If you hear nothing, check the iPad's side mute switch and volume. Works offline once installed. Settings are saved on this device only. To exit full screen, press and hold the ⚙ button, or use the device's back/home gesture. If the child seems uncomfortable, try “Calm &amp; soft”, lower the brightness, or take a break.</p>
  </section>
 </div>
 
@@ -141,6 +160,7 @@ const overlay = $('overlay'), hint = $('hint'), gear = $('gear');
 const reducedMQ = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : null;
 let reduced = !!(reducedMQ && reducedMQ.matches);
 if (reducedMQ && reducedMQ.addEventListener) reducedMQ.addEventListener('change', e => reduced = e.matches);
+else if (reducedMQ && reducedMQ.addListener) reducedMQ.addListener(e => reduced = e.matches);
 
 /* ---------- Settings ---------- */
 const PALETTES = {
@@ -157,7 +177,7 @@ const HOP_SECONDS = [Infinity, 9, 6.5, 4.5, 3.2];
 const AFTERGLOW = [1.3, 2.6, 5];
 const MODES = ['wall', 'drift', 'follow', 'ball'];
 const HINTS = { wall: 'Touch the glowing circles ✨', drift: 'Reach for the moving light 🌕', follow: 'Touch the brightest light ✨', ball: 'Touch and move the magic ball 🔵' };
-const DEFAULTS = { mode: 'wall', size: 2, bright: 85, speed: 2, after: 1, palette: 'rainbow', sound: 0, wave: true, hints: true, autoFull: true };
+const DEFAULTS = { mode: 'wall', size: 2, bright: 85, speed: 2, after: 1, palette: 'rainbow', sound: 0, wave: true, hints: true, autoFull: true, music: 0, musicVol: 1, lock: false };
 const PRESETS = {
   calm:  { size: 3, bright: 55, speed: 1, after: 2, palette: 'soft', sound: 0, wave: false },
   vivid: { size: 2, bright: 100, speed: 3, after: 1, palette: 'rainbow', wave: true }
@@ -172,6 +192,7 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 function sanitize() {
   S.size = clamp(Math.round(S.size), 1, 5); S.bright = clamp(Math.round(S.bright), 30, 100);
   S.speed = clamp(Math.round(S.speed), 0, 4); S.after = clamp(Math.round(S.after), 0, 2); S.sound = clamp(Math.round(S.sound), 0, 2);
+  S.music = clamp(Math.round(S.music), 0, 3); S.musicVol = clamp(Math.round(S.musicVol), 1, 3);
   if (!PALETTES[S.palette]) S.palette = 'rainbow'; if (!MODES.includes(S.mode)) S.mode = 'wall';
 }
 sanitize();
@@ -291,7 +312,7 @@ function configure() {
   target = nearest(W / 2, H / 2); prevTarget = -1; nextHop = t + HOP_SECONDS[S.speed];
 }
 function resize() {
-  W = window.innerWidth; H = window.innerHeight; dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight; dpr = Math.min(window.devicePixelRatio || 1, 1); // older-iPad version: lower resolution keeps the animation smooth
   cvs.width = Math.round(W * dpr); cvs.height = Math.round(H * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); configure();
 }
@@ -299,12 +320,112 @@ function resize() {
 /* ---------- Gentle sound (off by default, pentatonic so it is always pleasant) ---------- */
 let audio = null;
 const PENTA = [0, 2, 4, 7, 9];
-function unlockAudio() {
-  if (!S.sound) return;
+function ensureAudio() {
   try {
-    const A = window.AudioContext || window.webkitAudioContext; if (!A) return;
-    if (!audio) audio = new A(); if (audio.state === 'suspended') audio.resume();
+    const A = window.AudioContext || window.webkitAudioContext; if (!A) return null;
+    if (!audio) {
+      audio = new A();
+      // iOS 12 only starts audio after a sound is played inside a touch: play one silent sample
+      const b = audio.createBuffer(1, 1, 22050), s = audio.createBufferSource(); s.buffer = b; s.connect(audio.destination); s.start(0);
+    }
+    if (audio.state === 'suspended' && audio.resume) audio.resume();
   } catch (e) {}
+  return audio;
+}
+function unlockAudio() {
+  if (!S.sound && !S.music) return;
+  ensureAudio();
+  if (S.music) startMusic();
+}
+
+/* ---------- Background music (made on the device: slow, soft, no sudden sounds, works offline) ---------- */
+const MUSIC_VOL = [0, .05, .09, .14];
+const MUSICVOL_NAMES = ['', 'Very quiet', 'Quiet', 'Medium'];
+const PADS = [[48, 55, 64, 71], [45, 52, 60, 67], [41, 48, 57, 64], [43, 50, 59, 62]]; // Cmaj7, Am7, Fmaj7, G — gentle and resolved
+const BOX = [60, 62, 64, 67, 69, 72, 74, 76, 79, 81]; // C major pentatonic: no clashing notes
+const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+let mus = null;
+function startMusic() {
+  if (!S.music) { stopMusic(); return; }
+  if (!ensureAudio()) return;
+  if (mus && mus.style === S.music) { setMusicVolume(); return; }
+  stopMusic();
+  try {
+    const now = audio.currentTime, out = audio.createGain(), lp = audio.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 2200;
+    out.gain.setValueAtTime(.0001, now); out.gain.setTargetAtTime(MUSIC_VOL[S.musicVol], now, 1.6); // fades in over ~5 s
+    out.connect(lp); lp.connect(audio.destination);
+    mus = { style: S.music, out: out, lp: lp, nodes: [], next: now + .3, step: 0, note: 4, count: 0 };
+    if (S.music === 3) startOcean(mus);
+    mus.timer = setInterval(musicTick, 250); musicTick();
+  } catch (e) { mus = null; }
+}
+function setMusicVolume() {
+  if (!mus || !audio) return;
+  try { mus.out.gain.setTargetAtTime(MUSIC_VOL[S.musicVol], audio.currentTime, .4); } catch (e) {}
+}
+function stopMusic() {
+  if (!mus) return;
+  const m = mus; mus = null; clearInterval(m.timer);
+  try { const now = audio.currentTime; m.out.gain.cancelScheduledValues(now); m.out.gain.setValueAtTime(m.out.gain.value, now); m.out.gain.setTargetAtTime(.0001, now, .5); } catch (e) {}
+  setTimeout(() => {
+    m.nodes.forEach(n => { try { n.stop(0); } catch (e) {} });
+    try { m.out.disconnect(); m.lp.disconnect(); } catch (e) {}
+  }, 3000);
+}
+function musicTick() {
+  if (!mus || !audio) return;
+  const now = audio.currentTime;
+  if (mus.next < now - 1) mus.next = now + .2; // after the iPad wakes up, don't play missed notes all at once
+  while (mus.next < now + 1.5) {
+    if (mus.style === 1) { padChord(mus, mus.next); mus.next += 9; }
+    else if (mus.style === 2) { boxNote(mus, mus.next); mus.next += 1.4 + Math.random() * 1.4; }
+    else { mus.next = Infinity; }
+  }
+}
+function track(m, n) { m.nodes.push(n); if (m.nodes.length > 80) m.nodes.splice(0, m.nodes.length - 80); }
+function padVoice(m, f, type, t0, amp) {
+  const o = audio.createOscillator(), g = audio.createGain();
+  o.type = type; o.frequency.value = f;
+  g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(amp, t0 + 3.5);
+  g.gain.setValueAtTime(amp, t0 + 8.5); g.gain.linearRampToValueAtTime(0, t0 + 12.5);
+  o.connect(g); g.connect(m.out); o.start(t0); o.stop(t0 + 12.6); track(m, o);
+}
+function padChord(m, t0) {
+  const chord = PADS[m.step++ % PADS.length];
+  chord.forEach(n => { padVoice(m, mtof(n), 'sine', t0, .16); padVoice(m, mtof(n) * 1.004, 'triangle', t0, .045); });
+}
+function bell(m, f, t0, amp, len) {
+  [[1, 1], [2, .12], [4, .05]].forEach(([mul, a]) => {
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.type = 'sine'; o.frequency.value = f * mul;
+    g.gain.setValueAtTime(.0001, t0); g.gain.exponentialRampToValueAtTime(amp * a, t0 + .02);
+    g.gain.exponentialRampToValueAtTime(.0001, t0 + len / mul);
+    o.connect(g); g.connect(m.out); o.start(t0); o.stop(t0 + len + .1); track(m, o);
+  });
+}
+function boxNote(m, t0) {
+  // a slow, wandering tune: small steps, never the same note twice in a row
+  let step = [-2, -1, 1, 2][Math.floor(Math.random() * 4)];
+  m.note = clamp(m.note + step, 0, BOX.length - 1);
+  if (m.note === 0 || m.note === BOX.length - 1) m.note = clamp(m.note - Math.sign(step), 0, BOX.length - 1);
+  bell(m, mtof(BOX[m.note]), t0, .5, 3);
+  if (m.count++ % 6 === 0) bell(m, mtof(48), t0, .35, 5); // soft low note now and then
+}
+function startOcean(m) {
+  // brown noise with a slow swell, like waves: about one wave every 11 seconds
+  const sr = audio.sampleRate, len = Math.floor(sr * 4), N = Math.floor(sr * .5);
+  const raw = new Float32Array(len + N); let last = 0;
+  for (let i = 0; i < raw.length; i++) { last = (last + .02 * (Math.random() * 2 - 1)) / 1.02; raw[i] = last * 3.5; }
+  const buf = audio.createBuffer(1, len, sr), d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = i < N ? raw[i] * (i / N) + raw[len + i] * (1 - i / N) : raw[i]; // seamless loop
+  const src = audio.createBufferSource(); src.buffer = buf; src.loop = true;
+  const f = audio.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 650;
+  const g = audio.createGain(); g.gain.value = .55;
+  const lfo = audio.createOscillator(), lg = audio.createGain(); lfo.frequency.value = .09; lg.gain.value = .4;
+  lfo.connect(lg); lg.connect(g.gain);
+  src.connect(f); f.connect(g); g.connect(m.out);
+  src.start(0); lfo.start(0); track(m, src); track(m, lfo);
 }
 function chime(x, lift = 0) {
   if (!S.sound || t - lastChime < .14) return;
@@ -316,10 +437,10 @@ function chime(x, lift = 0) {
     const g = audio.createGain(), lp = audio.createBiquadFilter();
     lp.type = 'lowpass'; lp.frequency.value = 1800;
     g.gain.setValueAtTime(.0001, now); g.gain.exponentialRampToValueAtTime(vol, now + .03); g.gain.exponentialRampToValueAtTime(.0001, now + 1.4);
-    g.connect(lp).connect(audio.destination);
+    g.connect(lp); lp.connect(audio.destination);
     [[1, 1], [2, .18]].forEach(([mul, amp]) => {
       const o = audio.createOscillator(), og = audio.createGain();
-      o.type = 'sine'; o.frequency.value = f * mul; og.gain.value = amp; o.connect(og).connect(g); o.start(now); o.stop(now + 1.5);
+      o.type = 'sine'; o.frequency.value = f * mul; og.gain.value = amp; o.connect(og); og.connect(g); o.start(now); o.stop(now + 1.5);
     });
   } catch (e) {}
 }
@@ -410,25 +531,32 @@ function onTouch(x, y, kind, id) {
     if (Math.random() < .7) burst(x, y, 1, .35);
   }
 }
-cvs.addEventListener('pointerdown', e => {
+function inputDown(id, x, y) {
   if (overlay.classList.contains('open')) return;
-  e.preventDefault();
-  try { cvs.setPointerCapture(e.pointerId); } catch (err) {}
   unlockAudio(); keepAwake();
   if (S.autoFull && !isFull() && !standalone()) enterFull();
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  onTouch(e.clientX, e.clientY, 'down', e.pointerId);
-});
-cvs.addEventListener('pointermove', e => {
-  const p = pointers.get(e.pointerId); if (!p) return;
-  const dist = Math.hypot(e.clientX - p.x, e.clientY - p.y), stepLen = Math.max(10, cell * .3);
+  pointers.set(id, { x: x, y: y });
+  onTouch(x, y, 'down', id);
+}
+function inputMove(id, x, y) {
+  const p = pointers.get(id); if (!p) return;
+  const dist = Math.hypot(x - p.x, y - p.y), stepLen = Math.max(10, cell * .3);
   if (dist < 4) return;
   const steps = Math.ceil(dist / stepLen);
-  for (let i = 1; i <= steps; i++) onTouch(p.x + (e.clientX - p.x) * i / steps, p.y + (e.clientY - p.y) * i / steps, 'move', e.pointerId);
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-});
-const endPointer = e => { pointers.delete(e.pointerId); if (!pointers.size) orb.held = false; };
-cvs.addEventListener('pointerup', endPointer); cvs.addEventListener('pointercancel', endPointer); cvs.addEventListener('lostpointercapture', endPointer);
+  for (let i = 1; i <= steps; i++) onTouch(p.x + (x - p.x) * i / steps, p.y + (y - p.y) * i / steps, 'move', id);
+  pointers.set(id, { x: x, y: y });
+}
+function inputUp(id) { pointers.delete(id); if (!pointers.size) orb.held = false; }
+const eachTouch = (e, fn) => { for (let i = 0; i < e.changedTouches.length; i++) { const k = e.changedTouches[i]; fn('t' + k.identifier, k.clientX, k.clientY); } };
+cvs.addEventListener('touchstart', e => { if (overlay.classList.contains('open')) return; e.preventDefault(); eachTouch(e, inputDown); }, { passive: false });
+cvs.addEventListener('touchmove', e => { e.preventDefault(); eachTouch(e, inputMove); }, { passive: false });
+cvs.addEventListener('touchend', e => { e.preventDefault(); unlockAudio(); eachTouch(e, inputUp); }, { passive: false });
+cvs.addEventListener('touchcancel', e => eachTouch(e, inputUp));
+// mouse, for testing on a computer
+let mouseDown = false;
+cvs.addEventListener('mousedown', e => { mouseDown = true; inputDown('m', e.clientX, e.clientY); });
+window.addEventListener('mousemove', e => { if (mouseDown) inputMove('m', e.clientX, e.clientY); });
+window.addEventListener('mouseup', () => { if (mouseDown) { mouseDown = false; inputUp('m'); } });
 ['contextmenu', 'gesturestart', 'dblclick'].forEach(ev => document.addEventListener(ev, e => e.preventDefault(), { passive: false }));
 document.addEventListener('touchmove', e => { if (!overlay.contains(e.target)) e.preventDefault(); }, { passive: false });
 
@@ -579,7 +707,7 @@ function frame(now) {
   if (mode === 'drift') updateOrb(dt); else if (mode === 'ball') updateBall(dt); else if (mode === 'follow') updateFollow(); else updateWave(dt);
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
   ctx.drawImage(bg, 0, 0, W, H);
-  drawDots(mode === 'wall' ? 1 : mode === 'follow' ? .3 : .28);
+  drawDots(mode === 'wall' ? 1 : mode === 'follow' ? .62 : .78);
   drawEffects(dt);
   if (mode === 'drift') drawOrb(); else if (mode === 'ball') drawBall(); else if (mode === 'follow') drawTargetHalo();
   if (S.bright < 100) { ctx.fillStyle = `rgba(0,0,0,${((100 - S.bright) / 100 * .85).toFixed(3)})`; ctx.fillRect(0, 0, W, H); }
@@ -620,6 +748,14 @@ function syncUI() {
   $('size').value = S.size; $('sizeOut').textContent = SIZE_NAMES[S.size - 1];
   $('bright').value = S.bright; $('brightOut').textContent = S.bright + '%';
   $('speed').value = S.speed; $('speedOut').textContent = SPEED_NAMES[S.speed];
+  document.querySelectorAll('[data-music]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.music === S.music)));
+  $('musicVol').value = S.musicVol; $('musicVolOut').textContent = MUSICVOL_NAMES[S.musicVol];
+  syncGear();
+}
+function syncGear() {
+  gear.classList.toggle('locked', !!S.lock);
+  gear.querySelector('span').textContent = S.lock ? '🔒' : '⚙';
+  gear.setAttribute('aria-label', S.lock ? 'Locked. Grown-ups: press and hold for 3 seconds' : 'Grown-up settings (press and hold)');
 }
 function setMode(m) {
   S.mode = m; rings = []; sparks = []; orb.joy = 0; orb.held = false;
@@ -637,6 +773,8 @@ function apply(changes) {
   Object.assign(S, changes); sanitize(); save(); syncUI();
   if (needLayout) configure();
   if ('speed' in changes) nextHop = t + HOP_SECONDS[S.speed];
+  if ('music' in changes) startMusic();
+  if ('musicVol' in changes) setMusicVolume();
 }
 document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => { setMode(b.dataset.mode); save(); syncUI(); closePanel(); }));
 document.querySelectorAll('[data-after]').forEach(b => b.addEventListener('click', () => apply({ after: +b.dataset.after })));
@@ -644,7 +782,8 @@ document.querySelectorAll('[data-sound]').forEach(b => b.addEventListener('click
 palBox.addEventListener('click', e => { const b = e.target.closest('[data-palette]'); if (b) apply({ palette: b.dataset.palette }); });
 document.querySelectorAll('[data-toggle]').forEach(b => b.addEventListener('click', () => apply({ [b.dataset.toggle]: !S[b.dataset.toggle] })));
 document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => apply(PRESETS[b.dataset.preset])));
-['size', 'bright', 'speed'].forEach(id => $(id).addEventListener('input', e => apply({ [id]: +e.target.value })));
+document.querySelectorAll('[data-music]').forEach(b => b.addEventListener('click', () => apply({ music: +b.dataset.music })));
+['size', 'bright', 'speed', 'musicVol'].forEach(id => $(id).addEventListener('input', e => apply({ [id]: +e.target.value })));
 $('fullNow').addEventListener('click', () => { toggleFull(); });
 $('done').addEventListener('click', () => closePanel());
 
@@ -653,18 +792,24 @@ function closePanel() { overlay.classList.remove('open'); gear.blur(); }
 overlay.addEventListener('click', e => { if (e.target === overlay) closePanel(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && overlay.classList.contains('open')) closePanel(); });
 
-// Press-and-hold (~1 second) so a child's tap does not open the settings
-let holdStart = 0, holdRaf = 0;
+// Press-and-hold (~1 second, or 3 seconds when the child lock is on) so a child's tap does not open the settings
+let holdStart = 0, holdRaf = 0, holdX = 0, holdY = 0;
 function holdTick() {
-  const p = clamp((performance.now() - holdStart) / 1000, 0, 1);
+  const p = clamp((performance.now() - holdStart) / (S.lock ? 3000 : 1000), 0, 1);
   gear.style.setProperty('--p', p.toFixed(3));
   if (p >= 1) { cancelHold(); openPanel(); return; }
   holdRaf = requestAnimationFrame(holdTick);
 }
 function cancelHold() { cancelAnimationFrame(holdRaf); holdStart = 0; gear.classList.remove('holding'); gear.style.setProperty('--p', 0); }
-gear.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); holdStart = performance.now(); gear.classList.add('holding'); holdRaf = requestAnimationFrame(holdTick); });
-['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => gear.addEventListener(ev, cancelHold));
-gear.addEventListener('click', e => { if (e.detail === 0) openPanel(); }); // keyboard (Enter/Space) opens immediately
+function startHold(e) {
+  e.preventDefault(); e.stopPropagation(); if (holdStart) return;
+  const p = e.touches ? e.touches[0] : e; holdX = p.clientX; holdY = p.clientY; holdStart = performance.now(); gear.classList.add('holding'); holdRaf = requestAnimationFrame(holdTick); }
+gear.addEventListener('touchstart', startHold, { passive: false });
+gear.addEventListener('mousedown', startHold);
+['touchend', 'touchcancel', 'mouseup', 'mouseleave'].forEach(ev => gear.addEventListener(ev, cancelHold));
+// a finger sliding across the corner (a child playing) cancels the hold; only a still, deliberate press opens it
+gear.addEventListener('touchmove', e => { const p = e.touches[0]; if (holdStart && p && Math.hypot(p.clientX - holdX, p.clientY - holdY) > 25) cancelHold(); }, { passive: true });
+gear.addEventListener('click', e => { if (e.detail === 0 && !S.lock) openPanel(); }); // keyboard (Enter/Space) opens immediately
 
 /* ---------- Start ---------- */
 window.addEventListener('resize', resize, { passive: true });
@@ -673,7 +818,8 @@ resize(); syncUI(); setMode(S.mode);
 requestAnimationFrame(t0 => { prev = t0; requestAnimationFrame(frame); });
 
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  const registerSW = () => navigator.serviceWorker.register('sw.js').catch(() => {});
+  if (document.readyState === 'complete') registerSW(); else window.addEventListener('load', registerSW);
 }
 })();
 </script>
